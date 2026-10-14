@@ -24,9 +24,15 @@
     <ul>
       <li class="link"><a href="https://open.spotify.com/artist/5Nn2L8K12bt910cShACLP7">listen on spotify</a></li>
       <li class="link"><a href="https://www.youtube.com/@woven-band">watch on youtube</a></li>
-      <li class="link">
-        <a href="https://dice.fm/artist/woven-3d5kx">shows</a>
-        <span class="next" data-until="2026-11-02T00:00-06:00">next: <a href="https://dice.fm/event/nvrmd9-collision-and-glass-woven-madame-de-1st-nov-the-burlington-chicago-tickets">nov 1 @ the burlington</a></span>
+      <li>
+        <details name="menu">
+          <summary>shows<span class="count" id="show-count">(1)</span></summary>
+          <ul class="sub" id="shows">
+            <li data-until="2026-11-02T00:00-06:00"><a href="https://dice.fm/event/nvrmd9-collision-and-glass-woven-madame-de-1st-nov-the-burlington-chicago-tickets">nov 1 @ the burlington</a> <span class="meta">w/ collision and glass, madame de</span></li>
+            <li class="meta" id="no-shows" hidden>nothing booked right now</li>
+            <li><a href="https://dice.fm/artist/woven-3d5kx">all shows on dice</a></li>
+          </ul>
+        </details>
       </li>
       <li>
         <details name="menu">
@@ -54,20 +60,28 @@
           </ul>
         </details>
       </li>
+      <li>
+        <details name="menu">
+          <summary>socials<span class="count">(2)</span></summary>
+          <ul class="sub">
+            <li><a href="https://instagram.com/ilwoven">instagram</a> <span class="meta">@ilwoven</span></li>
+            <li><a href="mailto:wovenchicago@gmail.com">email</a> <span class="meta">wovenchicago@gmail.com</span></li>
+          </ul>
+        </details>
+      </li>
     </ul>
   </nav>
-
-  <footer class="box status">
-    bg: <span id="bg-caption">frames from our music videos</span> &middot; <button type="button" id="bg-toggle">pause</button>
-  </footer>
 </div>
 
 <script src="bg.js"></script>
 <script>
-  // drop the next-show line once that show has happened
-  document.querySelectorAll('[data-until]').forEach(el => {
-    if (Date.now() > Date.parse(el.dataset.until)) el.remove();
+  // drop shows that have already happened
+  let upcoming = 0;
+  document.querySelectorAll('#shows [data-until]').forEach(li => {
+    if (Date.now() > Date.parse(li.dataset.until)) li.remove(); else upcoming++;
   });
+  document.getElementById('show-count').textContent = '(' + upcoming + ')';
+  document.getElementById('no-shows').hidden = upcoming > 0;
 </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 Website for the band woven. Plain static files, no build step.
 
 - `index.html`, `style.css`: the page (craigslist-style)
-- `bg.js`: ambient background. It steps through frames from the music videos, drawn small and ordered-dithered like an old GIF, with dithered dissolves between them. The footer shows which video and timestamp is on screen and links straight to that moment on YouTube.
+- `bg.js`: ambient background. It shows random frames from all the music videos (never the same video twice in a row), drawn small and ordered-dithered like an old GIF, holding each for 5 seconds with a slow crossfade between them. With reduced motion turned on in the OS, it shows one still frame.
 - `frames/`: one sprite sheet per music video, plus `manifest.json`
 - `scripts/build_frames.py`: regenerates `frames/`
 
@@ -22,7 +22,7 @@ Any static host works. For GitHub Pages: Settings → Pages → deploy from bran
 
 ## shows
 
-"shows" links to woven's [DICE artist page](https://dice.fm/artist/woven-3d5kx), which lists every show on DICE by itself. The "next:" line under it is set by hand in `index.html` (`<span class="next" data-until="...">`). It hides itself once the `data-until` time passes, so swap in the next show when one's booked.
+The shows submenu lists upcoming shows by hand in `index.html`, one `<li data-until="...">` per show, followed by a link to woven's [DICE artist page](https://dice.fm/artist/woven-3d5kx). Each show drops off once its `data-until` time passes, and the count updates with it. When none are left it says "nothing booked right now", so add a row whenever a show's booked.
 
 ## new music video?
 
@@ -41,8 +41,8 @@ The background can also play short video loops, like Spotify Canvas clips, throu
 
 ```json
 "loops": [
-  { "src": "silk-canvas.mp4", "title": "silk (canvas)", "url": "https://open.spotify.com/album/73RR2s5z2rAJ5YwA4khrBp" }
+  { "src": "silk-canvas.mp4" }
 ]
 ```
 
-Loops are shuffled in between the music videos. Each one plays for about 9 seconds.
+A loop plays after every 6 frames, for about 9 seconds each time.

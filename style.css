@@ -1,37 +1,15 @@
+/* one look in light and dark mode: translucent black boxes over the frames */
 :root {
-  --bg: #d8d8d8;
-  --panel: rgba(255, 255, 255, 0.74);
-  --border: rgba(0, 0, 0, 0.22);
-  --text: #1a1a1a;
-  --muted: #555;
-  --link: #00c;
-  --visited: #551a8b;
-  --logo: #800080;
-  --wash: rgba(255, 255, 255, 0.1);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #111;
-    --panel: rgba(16, 16, 16, 0.74);
-    --border: rgba(255, 255, 255, 0.18);
-    --text: #e8e8e8;
-    --muted: #a8a8a8;
-    --link: #8ab4f8;
-    --visited: #c58af9;
-    --logo: #e08ce0;
-    --wash: rgba(0, 0, 0, 0.3);
-  }
-}
-:root[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #111;
-  --panel: rgba(16, 16, 16, 0.74);
-  --border: rgba(255, 255, 255, 0.18);
-  --text: #e8e8e8;
-  --muted: #a8a8a8;
-  --link: #8ab4f8;
-  --visited: #c58af9;
+  --panel: rgba(0, 0, 0, 0.72);
+  --border: rgba(255, 255, 255, 0.16);
+  --text: #eee;
+  --muted: #b4b4b4;
+  --link: #9ec3ff;
+  --visited: #d4a8ff;
   --logo: #e08ce0;
-  --wash: rgba(0, 0, 0, 0.3);
+  --wash: rgba(0, 0, 0, 0.2);
 }
 
 * { box-sizing: border-box; }
@@ -129,12 +107,6 @@ header p {
   font-size: 12px;
 }
 
-.next {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-}
-
 .sub {
   margin: 2px 0 4px 2px;
   padding-left: 9px;
@@ -143,22 +115,7 @@ header p {
   line-height: 1.5;
 }
 .meta { color: var(--muted); }
-.sub .meta::before { content: "\00b7\00a0"; }
-
-.status {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-#bg-toggle {
-  font: inherit;
-  color: var(--link);
-  background: none;
-  border: 0;
-  padding: 0;
-  text-decoration: underline;
-  cursor: pointer;
-}
+.sub a + .meta::before { content: "\00b7\00a0"; }
 
 @media (max-width: 480px) {
   .page { width: auto; margin: 16px; }

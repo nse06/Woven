@@ -1,21 +1,20 @@
-// Ambient background: steps through frames pulled from the music videos,
-// rendered tiny and ordered-dithered like an old GIF, with dithered dissolves.
+// Ambient background: random frames pulled from the music videos, rendered
+// tiny and ordered-dithered like an old GIF, with slow crossfades.
 // Frames come from frames/manifest.json (see scripts/build_frames.py).
 // Optional "loops" in the manifest (e.g. Spotify Canvas mp4s) play through
-// the same dither filter.
+// the same dither filter every few frames. With reduced motion turned on,
+// it shows one still frame and stays put.
 (() => {
   const canvas = document.getElementById('bg');
-  const caption = document.getElementById('bg-caption');
-  const toggle = document.getElementById('bg-toggle');
   if (!canvas || !canvas.getContext) return;
 
   const W = 384, H = 216;      // internal resolution, scaled up pixelated
   const LEVELS = 8;            // colour levels per channel
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const HOLD = reduce ? 8000 : 1500;   // ms a frame sits still
-  const FADE = reduce ? 2000 : 650;    // ms for a dissolve
-  const RUN = [8, 18];                 // frames played in sequence before switching videos
-  const LOOP_MS = 9000;                // how long a video loop plays
+  const STILL = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const HOLD = 5000;           // ms a frame sits still
+  const FADE = 2500;           // ms for a crossfade
+  const LOOP_EVERY = 6;        // frames between video loops, if there are any
+  const LOOP_MS = 9000;        // how long a video loop plays
 
   canvas.width = W;
   canvas.height = H;
@@ -35,24 +34,22 @@
     15, 47,  7, 39, 13, 45,  5, 37,
     63, 31, 55, 23, 61, 29, 53, 21,
   ];
-  // per-pixel threshold (0..1) and dither offset (in channel units)
-  const thresh = new Float32Array(W * H);
+  // per-pixel dither offset, in channel units
   const offset = new Float32Array(W * H);
   const QSTEP = 255 / (LEVELS - 1);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      const b = (BAYER[(y & 7) * 8 + (x & 7)] + 0.5) / 64;
-      thresh[y * W + x] = b;
-      offset[y * W + x] = (b - 0.5) * QSTEP;
+      offset[y * W + x] = ((BAYER[(y & 7) * 8 + (x & 7)] + 0.5) / 64 - 0.5) * QSTEP;
     }
   }
   const out = ctx.createImageData(W, H);
 
-  let sources = [], cur = null, prev = null;
-  let vi = 0, fi = 0, run = 0, runLen = 0;
-  let timer = 0, raf = 0, paused = false;
+  let stills = [], loops = [], deck = [];
+  let card = null, cur = null, prev = null;   // card = { src, i }: what's on screen
+  let sinceLoop = 0, loopIdx = 0;
+  let timer = 0, raf = 0;
 
-  function grab(src, i) {
+  function grab({ src, i }) {
     if (src.video) {
       // cover-crop (Spotify Canvas loops are portrait)
       const v = src.video, vw = v.videoWidth, vh = v.videoHeight;
@@ -66,87 +63,87 @@
     return octx.getImageData(0, 0, W, H).data;
   }
 
-  // Blend a->b by dithered threshold p (0..1), then ordered-dither to LEVELS.
+  // Crossfade a->b (p = 0..1), then ordered-dither down to LEVELS.
   function render(a, b, p) {
-    const d = out.data;
-    for (let i = 0, n = W * H; i < n; i++) {
-      const s = b && thresh[i] < p ? b : a, k = i * 4, o = offset[i];
-      d[k]     = Math.round((s[k]     + o) / QSTEP) * QSTEP;
-      d[k + 1] = Math.round((s[k + 1] + o) / QSTEP) * QSTEP;
-      d[k + 2] = Math.round((s[k + 2] + o) / QSTEP) * QSTEP;
+    const d = out.data, s = b || a, q = 1 - p;
+    for (let i = 0, k = 0, n = W * H; i < n; i++, k += 4) {
+      const o = offset[i];
+      d[k]     = Math.round((a[k]     * q + s[k]     * p + o) / QSTEP) * QSTEP;
+      d[k + 1] = Math.round((a[k + 1] * q + s[k + 1] * p + o) / QSTEP) * QSTEP;
+      d[k + 2] = Math.round((a[k + 2] * q + s[k + 2] * p + o) / QSTEP) * QSTEP;
       d[k + 3] = 255;
     }
     ctx.putImageData(out, 0, 0);
   }
 
-  function fmt(t) {
-    t = Math.floor(t);
-    return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
-  }
-
-  function setCaption(src, i) {
-    if (!caption) return;
-    caption.textContent = '';
-    const a = document.createElement('a');
-    if (src.video) {
-      a.href = src.url || src.src;
-      a.textContent = src.title;
-    } else {
-      const t = Math.floor(src.times[i] || 0);
-      a.href = src.url + (t ? '&t=' + t + 's' : '');
-      a.textContent = src.title + ' @ ' + fmt(t);
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
     }
-    caption.append(a);
+    return a;
   }
 
-  function rand(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
-
-  // switch to source i at a random spot
-  function pick(i) {
-    vi = i;
-    const s = sources[vi];
-    fi = s.video ? 0 : rand(0, s.count - 1);
-    run = 0;
-    runLen = s.video ? 1 : rand(RUN[0], RUN[1]);
-    if (s.video) { s.video.currentTime = 0; s.video.play().catch(() => {}); }
+  // Pick the next card: a random frame from a random video, never from the
+  // same video twice in a row. The deck holds every frame, so a frame rarely
+  // comes back before the rest have been shown.
+  function draw() {
+    if (loops.length && (!stills.length || ++sinceLoop >= LOOP_EVERY)) {
+      sinceLoop = 0;
+      return { src: loops[loopIdx++ % loops.length], i: 0 };
+    }
+    const fresh = () => shuffle(stills.flatMap(src =>
+      Array.from({ length: src.count }, (_, i) => ({ src, i }))));
+    const last = card && card.src;
+    const pick = () => {
+      for (let k = deck.length - 1; k >= 0; k--) if (deck[k].src !== last) return k;
+      return -1;
+    };
+    if (!deck.length) deck = fresh();
+    let k = pick();
+    if (k < 0 && stills.length > 1) {   // all that's left is from the video on screen
+      deck = fresh().concat(deck);
+      k = pick();
+    }
+    return deck.splice(k < 0 ? deck.length - 1 : k, 1)[0];
   }
 
-  function advance() {
-    if (++run < runLen) { fi = (fi + 1) % sources[vi].count; return; }
-    if (sources[vi].video) sources[vi].video.pause();
-    pick((vi + 1) % sources.length);
+  function show(next) {
+    if (card && card.src.video && card.src !== next.src) card.src.video.pause();
+    if (next.src.video) {
+      next.src.video.currentTime = 0;
+      next.src.video.play().catch(() => {});
+    }
+    card = next;
   }
 
-  function next() {
-    if (paused || document.hidden || !sources.length) return;
-    advance();
-    const src = sources[vi];
+  function step() {
+    if (document.hidden || !(stills.length || loops.length)) return;
+    show(draw());
+    const c = card;
     prev = cur;
-    cur = grab(src, fi);
-    setCaption(src, fi);
+    cur = grab(c);
     const t0 = performance.now();
     let last = 0;
     const tick = now => {
-      if (paused) return;
-      const p = Math.min(1, (now - t0) / FADE);
-      if (now - last > 50 || p === 1) {   // ~20fps is plenty for a dither dissolve
+      const t = Math.min(1, (now - t0) / FADE);
+      if (now - last > 50 || t === 1) {   // ~20fps is plenty for a dithered fade
         last = now;
-        if (src.video) cur = grab(src, 0);
-        render(prev, cur, p);
+        if (c.src.video) cur = grab(c);
+        render(prev, cur, t * t * (3 - 2 * t));   // eased
       }
-      if (p < 1) { raf = requestAnimationFrame(tick); return; }
-      if (src.video) playLoop(src, now);
-      else timer = setTimeout(next, HOLD);
+      if (t < 1) { raf = requestAnimationFrame(tick); return; }
+      if (c.src.video) playLoop(c, now);
+      else timer = setTimeout(step, HOLD);
     };
     raf = requestAnimationFrame(tick);
   }
 
-  function playLoop(src, start) {
+  function playLoop(c, start) {
     let last = 0;
     const tick = now => {
-      if (paused) return;
-      if (now - start > LOOP_MS) { next(); return; }
-      if (now - last > 80) { last = now; cur = grab(src, 0); render(cur, null, 0); }
+      if (now - start > LOOP_MS) { step(); return; }
+      if (now - last > 80) { last = now; cur = grab(c); render(cur, null, 0); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -155,15 +152,12 @@
   function stop() {
     clearTimeout(timer);
     cancelAnimationFrame(raf);
-    const s = sources[vi];
-    if (s && s.video) s.video.pause();
+    if (card && card.src.video) card.src.video.pause();
   }
 
   function start() {
     stop();
-    const s = sources[vi];
-    if (s && s.video) s.video.play().catch(() => {});
-    next();
+    step();
   }
 
   function loadImage(src) {
@@ -190,42 +184,26 @@
 
   async function init() {
     const m = await fetch('frames/manifest.json').then(r => r.json());
-    const stills = m.videos.map(async v => ({
-      ...v, cell: m.cell, cols: m.cols, img: await loadImage('frames/' + v.sheet),
-    }));
-    const loops = (m.loops || []).map(async l => ({
-      ...l, count: 1, video: await loadVideo('frames/' + l.src),
-    }));
-    sources = (await Promise.allSettled([...stills, ...loops]))
+    const loaded = async ps => (await Promise.allSettled(ps))
       .filter(r => r.status === 'fulfilled').map(r => r.value);
-    if (!sources.length) return;
+    stills = await loaded(m.videos.map(async v => ({
+      ...v, cell: m.cell, cols: m.cols, img: await loadImage('frames/' + v.sheet),
+    })));
+    loops = await loaded((m.loops || []).map(async l => ({
+      ...l, count: 1, video: await loadVideo('frames/' + l.src),
+    })));
+    if (!stills.length && !loops.length) return;
 
-    // interleave loops between the video stills
-    const s = sources.filter(x => !x.video), l = sources.filter(x => x.video);
-    sources = [];
-    for (let i = 0; i < Math.max(s.length, l.length); i++) {
-      if (s[i]) sources.push(s[i]);
-      if (l[i]) sources.push(l[i]);
-    }
-
-    pick(rand(0, sources.length - 1));
-    const first = sources[vi];
-    cur = grab(first, fi);
+    show(draw());
+    cur = grab(card);
     render(cur, null, 0);
-    setCaption(first, fi);
-    if (first.video) playLoop(first, performance.now());
-    else timer = setTimeout(next, HOLD);
+    if (STILL) { stop(); return; }
+    if (card.src.video) playLoop(card, performance.now());
+    else timer = setTimeout(step, HOLD);
   }
 
-  if (toggle) {
-    toggle.addEventListener('click', () => {
-      paused = !paused;
-      toggle.textContent = paused ? 'play' : 'pause';
-      if (paused) stop(); else start();
-    });
-  }
   document.addEventListener('visibilitychange', () => {
-    if (paused) return;
+    if (STILL) return;
     if (document.hidden) stop(); else start();
   });
 
