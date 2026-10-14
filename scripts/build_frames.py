@@ -5,7 +5,7 @@ For each video we grab:
   - YouTube's auto-generated 720p stills (maxres1/2/3.jpg)
   - the storyboard sprite sheets (one small frame every couple of seconds)
 
-Pillarboxing is cropped off, black/duplicate frames are dropped, and every frame
+Pillarboxing is cropped off, flat (black/blank) and duplicate frames are dropped, and every frame
 is center-cropped to 16:9 and packed into one sprite sheet per video. The page
 reads frames/manifest.json to know what's where.
 
@@ -126,6 +126,13 @@ def too_similar(a, b):
     return ImageStat.Stat(d).mean[0] < 6
 
 
+def flat(img):
+    """Black, blank or washed-out frames turn into plain dither noise, so skip them."""
+    st = ImageStat.Stat(img.convert("L"))
+    mean, sd = st.mean[0], st.stddev[0]
+    return mean < 14 or sd < 10 or (mean > 215 and sd < 22)
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     manifest = {"cell": list(CELL), "cols": COLS, "videos": []}
@@ -134,6 +141,7 @@ def main():
         loops = json.loads(old.read_text()).get("loops")
         if loops:
             manifest["loops"] = loops
+    sheets = {}  # written only once every video has been fetched, so a failure leaves frames/ as it was
     for v in VIDEOS:
         info = video_info(v["id"])
         sb = list(storyboard_frames(info))
@@ -146,8 +154,8 @@ def main():
 
         kept = []
         for t, im, hi in frames:
-            if ImageStat.Stat(im.convert("L")).mean[0] < 14:
-                continue  # black
+            if flat(im):
+                continue
             if kept and too_similar(kept[-1][1], im):
                 if hi:  # prefer the sharper still over its storyboard twin
                     kept[-1] = (t, im, hi)
@@ -159,7 +167,7 @@ def main():
         for i, (_, im, _) in enumerate(kept):
             sheet.paste(im, ((i % COLS) * CELL[0], (i // COLS) * CELL[1]))
         name = f"{v['id']}.jpg"
-        sheet.save(OUT / name, quality=78, optimize=True, progressive=True)
+        sheets[name] = sheet
 
         manifest["videos"].append({
             **v,
@@ -168,8 +176,11 @@ def main():
             "count": len(kept),
             "times": [round(t, 1) for t, _, _ in kept],
         })
-        print(f"{v['title']}: {len(kept)} frames -> {name} ({(OUT / name).stat().st_size // 1024} KB)")
+        print(f"{v['title']}: {len(kept)} frames")
 
+    for name, sheet in sheets.items():
+        sheet.save(OUT / name, quality=78, optimize=True, progressive=True)
+        print(f"wrote {name} ({(OUT / name).stat().st_size // 1024} KB)")
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")
 
 
