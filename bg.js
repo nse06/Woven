@@ -11,8 +11,8 @@
   const W = 384, H = 216;      // internal resolution, scaled up pixelated
   const LEVELS = 8;            // colour levels per channel
   const STILL = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const HOLD = 5000;           // ms a frame sits still
-  const FADE = 2500;           // ms for a crossfade
+  const HOLD = 4000;           // ms a frame sits still
+  const FADE = 2000;           // ms for a crossfade
   const LOOP_EVERY = 6;        // frames between video loops, if there are any
   const LOOP_MS = 9000;        // how long a video loop plays
 
