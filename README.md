@@ -20,6 +20,10 @@ python3 -m http.server
 
 Any static host works. For GitHub Pages: Settings → Pages → deploy from branch, root folder.
 
+## shows
+
+"shows" links to woven's [DICE artist page](https://dice.fm/artist/woven-3d5kx), which lists every show on DICE by itself. The "next:" line under it is set by hand in `index.html` (`<span class="next" data-until="...">`). It hides itself once the `data-until` time passes, so swap in the next show when one's booked.
+
 ## new music video?
 
 Add it to `VIDEOS` in `scripts/build_frames.py`, then:

@@ -97,7 +97,6 @@
       a.textContent = src.title + ' @ ' + fmt(t);
     }
     caption.append(a);
-    if (src.credit) caption.append(' (' + src.credit + ')');
   }
 
   function rand(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
