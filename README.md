@@ -3,7 +3,8 @@
 Website for the band woven. Plain static files, no build step.
 
 - `index.html`, `style.css`: the page (craigslist-style)
-- `bg.js`: ambient background. It shows random frames from all the music videos (never the same video twice in a row), drawn small and ordered-dithered like an old GIF, holding each for 4 seconds with a 2-second crossfade between them. With reduced motion turned on in the OS, it shows one still frame.
+- `bg.js`: ambient background. It shows random frames from all the music videos (never the same video twice in a row), drawn small and ordered-dithered like an old GIF, holding each for 4 seconds with a 2-second TV-static dissolve between them. With reduced motion turned on in the OS, it shows one still frame.
+- `fonts/`: Questrial, for the struck-through "woven" header (SIL Open Font License, in `fonts/OFL.txt`)
 - `frames/`: one sprite sheet per music video, plus `manifest.json`
 - `scripts/build_frames.py`: regenerates `frames/`
 

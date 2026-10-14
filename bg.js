@@ -1,5 +1,5 @@
 // Ambient background: random frames pulled from the music videos, rendered
-// tiny and ordered-dithered like an old GIF, with slow crossfades.
+// tiny and ordered-dithered like an old GIF, with TV-static dissolves.
 // Frames come from frames/manifest.json (see scripts/build_frames.py).
 // Optional "loops" in the manifest (e.g. Spotify Canvas mp4s) play through
 // the same dither filter every few frames. With reduced motion turned on,
@@ -12,7 +12,7 @@
   const LEVELS = 8;            // colour levels per channel
   const STILL = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const HOLD = 4000;           // ms a frame sits still
-  const FADE = 2000;           // ms for a crossfade
+  const FADE = 2000;           // ms for a dissolve
   const LOOP_EVERY = 6;        // frames between video loops, if there are any
   const LOOP_MS = 9000;        // how long a video loop plays
 
@@ -34,12 +34,15 @@
     15, 47,  7, 39, 13, 45,  5, 37,
     63, 31, 55, 23, 61, 29, 53, 21,
   ];
-  // per-pixel dither offset, in channel units
+  // per-pixel dither offset (in channel units), and the order pixels flip in
+  // during a dissolve: random, so mid-way it looks like TV static
   const offset = new Float32Array(W * H);
+  const order = new Float32Array(W * H);
   const QSTEP = 255 / (LEVELS - 1);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       offset[y * W + x] = ((BAYER[(y & 7) * 8 + (x & 7)] + 0.5) / 64 - 0.5) * QSTEP;
+      order[y * W + x] = Math.random();
     }
   }
   const out = ctx.createImageData(W, H);
@@ -63,14 +66,14 @@
     return octx.getImageData(0, 0, W, H).data;
   }
 
-  // Crossfade a->b (p = 0..1), then ordered-dither down to LEVELS.
+  // Dissolve a->b (p = 0..1), then ordered-dither down to LEVELS.
   function render(a, b, p) {
-    const d = out.data, s = b || a, q = 1 - p;
+    const d = out.data;
     for (let i = 0, k = 0, n = W * H; i < n; i++, k += 4) {
-      const o = offset[i];
-      d[k]     = Math.round((a[k]     * q + s[k]     * p + o) / QSTEP) * QSTEP;
-      d[k + 1] = Math.round((a[k + 1] * q + s[k + 1] * p + o) / QSTEP) * QSTEP;
-      d[k + 2] = Math.round((a[k + 2] * q + s[k + 2] * p + o) / QSTEP) * QSTEP;
+      const s = b && order[i] < p ? b : a, o = offset[i];
+      d[k]     = Math.round((s[k]     + o) / QSTEP) * QSTEP;
+      d[k + 1] = Math.round((s[k + 1] + o) / QSTEP) * QSTEP;
+      d[k + 2] = Math.round((s[k + 2] + o) / QSTEP) * QSTEP;
       d[k + 3] = 255;
     }
     ctx.putImageData(out, 0, 0);
@@ -127,7 +130,7 @@
     let last = 0;
     const tick = now => {
       const t = Math.min(1, (now - t0) / FADE);
-      if (now - last > 50 || t === 1) {   // ~20fps is plenty for a dithered fade
+      if (now - last > 50 || t === 1) {   // ~20fps is plenty for the dissolve
         last = now;
         if (c.src.video) cur = grab(c);
         render(prev, cur, t * t * (3 - 2 * t));   // eased

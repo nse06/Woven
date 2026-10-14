@@ -12,6 +12,14 @@
   --wash: rgba(0, 0, 0, 0.2);
 }
 
+@font-face {
+  font-family: "Questrial";
+  src: url("fonts/questrial.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 * { box-sizing: border-box; }
 
 html { background: var(--bg); }
@@ -57,7 +65,18 @@ a:hover { text-decoration: none; }
 
 header h1 {
   margin: 0;
-  font: bold 26px/1.1 Georgia, "Times New Roman", serif;
+  font: 400 26px/1.1 Questrial, "Century Gothic", "Avenir Next", sans-serif;
+}
+/* struck through, the way it's written on the record covers */
+.wordmark { position: relative; }
+.wordmark::after {
+  content: "";
+  position: absolute;
+  left: -0.1em;
+  right: -0.04em;   /* less, since the n already has space after it */
+  top: 0.53em;      /* middle of Questrial's lowercase letters */
+  height: 0.06em;
+  background: currentColor;
 }
 .logo,
 .logo:visited {
