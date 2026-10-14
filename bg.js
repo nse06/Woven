@@ -11,8 +11,8 @@
   const W = 384, H = 216;      // internal resolution, scaled up pixelated
   const LEVELS = 8;            // colour levels per channel
   const STILL = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const HOLD = 4000;           // ms a frame sits still
-  const FADE = 2000;           // ms for a dissolve
+  const HOLD = 1500;           // ms a frame sits still
+  const FADE = 2500;           // ms for a dissolve
   const LOOP_EVERY = 6;        // frames between video loops, if there are any
   const LOOP_MS = 9000;        // how long a video loop plays
 
@@ -130,10 +130,10 @@
     let last = 0;
     const tick = now => {
       const t = Math.min(1, (now - t0) / FADE);
-      if (now - last > 50 || t === 1) {   // ~20fps is plenty for the dissolve
+      if (now - last > 33 || t === 1) {   // ~30fps keeps the static smooth
         last = now;
         if (c.src.video) cur = grab(c);
-        render(prev, cur, t * t * (3 - 2 * t));   // eased
+        render(prev, cur, t);   // linear: no slow start/end that reads as extra pausing
       }
       if (t < 1) { raf = requestAnimationFrame(tick); return; }
       if (c.src.video) playLoop(c, now);
